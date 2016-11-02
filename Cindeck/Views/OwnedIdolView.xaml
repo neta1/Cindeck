@@ -42,7 +42,7 @@
                 <DataGridTextColumn IsReadOnly="True" Header="タイプ" Binding="{Binding Path=Category, Converter={StaticResource IdolCategoryConverter}}"/>
                 <DataGridComboBoxColumn Header="特技Lv" ItemsSource="{StaticResource SkillLevels}" SelectedItemBinding="{Binding Path=SkillLevel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                 <DataGridTextColumn IsReadOnly="True" Header="特技効果値" Binding="{Binding Path=SkillScore, StringFormat=F2}"/>
-                <DataGridTemplateColumn IsReadOnly="True" Header="ライフ" SortMemberPath="Life">
+                <DataGridTemplateColumn IsReadOnly="True" Header="ライフ" SortMemberPath="Life" ClipboardContentBinding="{Binding Life}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
@@ -53,7 +53,7 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
                 <DataGridTextColumn IsReadOnly="True" Header="合計アピール" Binding="{Binding Path=TotalAppeal}"/>
-                <DataGridTemplateColumn IsReadOnly="True" Header="ボーカルアピール" SortMemberPath="Vocal">
+                <DataGridTemplateColumn IsReadOnly="True" Header="ボーカルアピール" SortMemberPath="Vocal" ClipboardContentBinding="{Binding Vocal}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
@@ -63,7 +63,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn IsReadOnly="True" Header="ダンスアピール" SortMemberPath="Dance">
+                <DataGridTemplateColumn IsReadOnly="True" Header="ダンスアピール" SortMemberPath="Dance" ClipboardContentBinding="{Binding Dance}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
@@ -73,7 +73,7 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTemplateColumn IsReadOnly="True" Header="ビジュアルアピール" SortMemberPath="Visual">
+                <DataGridTemplateColumn IsReadOnly="True" Header="ビジュアルアピール" SortMemberPath="Visual" ClipboardContentBinding="{Binding Visual}">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
