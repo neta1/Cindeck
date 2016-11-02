@@ -29,6 +29,7 @@ namespace Cindeck.ViewModels
             SendToSlotCommand = new DelegateCommand<string>(SendToSlot, x => SelectedIdol != null);
             SaveCommand = new DelegateCommand(Save, () => !string.IsNullOrEmpty(UnitName));
             DeleteCommand = new DelegateCommand(Delete, () => Units.Contains(SelectedUnit));
+            OptimizeCommand = new DelegateCommand(Optimize, () => m_config.OwnedIdols.Count > 0);
             MoveToSlotCommand = new DelegateCommand<string>(MoveToSlot, CanMoveToSlot);
             ResetSlotCommand = new DelegateCommand<string>(ResetSlot, CanResetSlot);
             HighlightCommand = new DelegateCommand<string>(Highlight, CanHighlight);
@@ -36,6 +37,23 @@ namespace Cindeck.ViewModels
             SetGuestCenterCommand = new DelegateCommand(SetGuestCenter, () => SelectedIdol != null);
             CopyIidFromSlotCommand = new DelegateCommand<string>(CopyIidFromSlot);
             SetGuestCenterFromSlotCommand = new DelegateCommand<string>(SetGuestCenterFromSlot);
+
+            GrooveBursts = new List<Tuple<AppealType?, string>>
+            {
+                Tuple.Create(new AppealType?(),"なし" ),
+                Tuple.Create((AppealType?)AppealType.Vocal,"Vo 150%"),
+                Tuple.Create((AppealType?)AppealType.Dance,"Da 150%"),
+                Tuple.Create((AppealType?)AppealType.Visual,"Vi 150%")
+            };
+            SongTypes = new List<Tuple<IdolCategory, string>>
+            {
+                Tuple.Create(IdolCategory.All, "All 30%"),
+                Tuple.Create(IdolCategory.Cute, "Cu 30%"),
+                Tuple.Create(IdolCategory.Cool, "Co 30%"),
+                Tuple.Create(IdolCategory.Passion, "Pa 30%")
+            };
+            SongType = IdolCategory.All;
+            OptimizeResults = new ObservableCollection<Tuple<Unit, string>>();
 
             Idols = new ListCollectionView(m_config.OwnedIdols);
             Filter = new IdolFilter(config, Idols, false);
@@ -50,6 +68,45 @@ namespace Cindeck.ViewModels
             {
                 Idols.SortDescriptions.Add(option.ToSortDescription());
             }
+        }
+
+        public List<Tuple<AppealType?, string>> GrooveBursts
+        {
+            get;
+        }
+
+        public AppealType? GrooveBurst
+        {
+            get;
+            set;
+        }
+
+        public List<Tuple<IdolCategory, string>> SongTypes
+        {
+            get;
+        }
+
+        public IdolCategory SongType
+        {
+            get;
+            set;
+        }
+
+        public bool ContainRecovery
+        {
+            get;
+            set;
+        }
+
+        public ObservableCollection<Tuple<Unit, string>> OptimizeResults
+        {
+            get;
+        }
+
+        public Unit SelectedOptimizeResult
+        {
+            get;
+            set;
         }
 
         public ObservableCollection<Unit> Units
@@ -144,6 +201,170 @@ namespace Cindeck.ViewModels
                 TemporalUnit = new Unit();
             }
             m_config.Save();
+        }
+
+        public DelegateCommand OptimizeCommand
+        {
+            get;
+        }
+
+        private void Optimize()
+        {
+            OptimizeResults.Clear();
+
+            IEnumerable<IEnumerable<OwnedIdol>> result;
+            var ownedIdols = m_config.OwnedIdols.GroupBy(x => x.Iid).Select(x => x.OrderByDescending(y => y.SkillLevel).First());
+            var appealUpIdols = ownedIdols.Where(x => x.CenterEffect is CenterEffect.AppealUp || (x.CenterEffect is CenterEffect.ConditionalAppealUp && ((CenterEffect.ConditionalAppealUp)x.CenterEffect).Condition == AppealUpCondition.UnitContainsAllTypes));
+
+            if (appealUpIdols.Any())
+            {
+                result = appealUpIdols
+                    .GroupBy(x => x.CenterEffect.Name)
+                    .Select(x => x.OrderByDescending(y => CalculateTotalAppeal(y, y.CenterEffect)).First())
+                    .Select(x => TakeBest5(x, ownedIdols))
+                    .OrderByDescending(x => x.Sum(y => CalculateTotalAppeal(y, x.First().CenterEffect)));
+            }
+            else
+            {
+                result = Enumerable.Repeat(TakeBest5(null, ownedIdols), 1);
+            }
+
+            foreach (var i in result.Take(5))
+            {
+                var c = i.Count();
+                var u = new Unit();
+                if (c > 0) u.Slot3 = i.ElementAt(0);
+                if (c > 1) u.Slot2 = i.ElementAt(1);
+                if (c > 2) u.Slot4 = i.ElementAt(2);
+                if (c > 3) u.Slot1 = i.ElementAt(3);
+                if (c > 4) u.Slot5 = i.ElementAt(4);
+                OptimizeResults.Add(Tuple.Create(u, string.Format("#{0}: {1}", OptimizeResults.Count + 1, i.Sum(x => CalculateTotalAppeal(x, i.First().CenterEffect)))));
+            }
+            SelectedOptimizeResult = OptimizeResults.Select(x => x.Item1).FirstOrDefault();
+        }
+
+        private IEnumerable<OwnedIdol> TakeBest5(OwnedIdol center, IEnumerable<OwnedIdol> ownedIdols)
+        {
+            if (center != null)
+            {
+                if (center.CenterEffect is CenterEffect.AppealUp)
+                {
+                    var r = ownedIdols.OrderByDescending(x => x == center).ThenByDescending(x => CalculateTotalAppeal(x, center.CenterEffect)).Take(5);
+                    if (ContainRecovery && !r.Any(x => x.Skill is Skill.Revival))
+                    {
+                        return r.Take(4).Concat(ownedIdols.Where(x => x.Skill is Skill.Revival)
+                            .OrderByDescending(x => x.SkillLevel)
+                            .ThenByDescending(x => CalculateTotalAppeal(x, center.CenterEffect))
+                            .Take(1));
+                    }
+                    return r;
+                }
+                else if (center.CenterEffect is CenterEffect.ConditionalAppealUp && ((CenterEffect.ConditionalAppealUp)center.CenterEffect).Condition == AppealUpCondition.UnitContainsAllTypes)
+                {
+                    var orderedIdols = ownedIdols.OrderByDescending(x => CalculateTotalAppeal(x, center.CenterEffect));
+                    var u = new List<OwnedIdol>(5);
+                    u.Add(center);
+                    if (!u.Any(x => x.Category == IdolCategory.Cute))
+                    {
+                        u.Add(orderedIdols.First(x => x.Category == IdolCategory.Cute));
+                    }
+                    if (!u.Any(x => x.Category == IdolCategory.Cool))
+                    {
+                        u.Add(orderedIdols.First(x => x.Category == IdolCategory.Cool));
+                    }
+                    if (!u.Any(x => x.Category == IdolCategory.Passion))
+                    {
+                        u.Add(orderedIdols.First(x => x.Category == IdolCategory.Passion));
+                    }
+                    u.AddRange(orderedIdols.Except(u).Take(5 - u.Count));
+                    u.RemoveAt(0);
+                    u.Sort((a, b) => CalculateTotalAppeal(a, center.CenterEffect).CompareTo(CalculateTotalAppeal(b, center.CenterEffect)) * -1);
+                    u.Insert(0, center);
+                    if (ContainRecovery && !u.Any(x => x.Skill is Skill.Revival))
+                    {
+                        for (int i = u.Count - 1; i >= 0; i--)
+                        {
+                            var rIdols = ownedIdols.Where(x => x.Skill is Skill.Revival)
+                                .OrderByDescending(x => x.SkillLevel)
+                                .ThenByDescending(x => CalculateTotalAppeal(x, center.CenterEffect));
+                            OwnedIdol ri = null;
+                            if (u.Count(x => x.Category == u[i].Category) == 1)
+                            {
+                                ri = rIdols.FirstOrDefault(x => x.Category == u[i].Category);
+                            }
+                            else
+                            {
+                                ri = rIdols.FirstOrDefault();
+                            }
+                            if (ri != null)
+                            {
+                                u[i] = ri;
+                                break;
+                            }
+                        }
+                    }
+                    return u;
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            else
+            {
+                var r = ownedIdols.OrderByDescending(x => CalculateTotalAppeal(x, null)).Take(5);
+                if (ContainRecovery && !r.Any(x => x.Skill is Skill.Revival))
+                {
+                    return r.Take(4).Concat(ownedIdols.Where(x => x.Skill is Skill.Revival)
+                        .OrderByDescending(x => x.SkillLevel)
+                        .ThenByDescending(x => CalculateTotalAppeal(x, null))
+                        .Take(1));
+                }
+                return r;
+            }
+        }
+
+        private int CalculateTotalAppeal(OwnedIdol idol, ICenterEffect effect)
+        {
+            return CalculateAppeal(idol, AppealType.Vocal, effect, SongType, GrooveBurst)
+                 + CalculateAppeal(idol, AppealType.Dance, effect, SongType, GrooveBurst)
+                 + CalculateAppeal(idol, AppealType.Visual, effect, SongType, GrooveBurst);
+        }
+
+        private int CalculateAppeal(OwnedIdol idol, AppealType type, ICenterEffect effect, IdolCategory songType, AppealType? grooveType)
+        {
+            if (idol == null)
+            {
+                return 0;
+            }
+
+            var rawValue = (int)idol.GetType().GetProperty(type.ToString()).GetValue(idol);
+            double upRate = 0;
+
+            if (effect != null)
+            {
+                if (effect is CenterEffect.AppealUp)
+                {
+                    var e = effect as CenterEffect.AppealUp;
+                    if (e.Targets.HasFlag(idol.Category) == true && e.TargetAppeal.HasFlag(type) == true)
+                    {
+                        upRate += e.Rate;
+                    }
+                }
+                else if (effect is CenterEffect.ConditionalAppealUp)
+                {
+                    var e = effect as CenterEffect.ConditionalAppealUp;
+                    if (e.Targets.HasFlag(idol.Category) == true && e.TargetAppeal.HasFlag(type) == true)
+                    {
+                        upRate += e.Rate;
+                    }
+                }
+            }
+
+            if (songType.HasFlag(idol.Category)) upRate += 0.3;
+            if (grooveType.HasValue && grooveType.Value == type) upRate += 1.5;
+
+            return (int)Math.Ceiling(rawValue + rawValue * upRate);
         }
 
         public DelegateCommand<string> MoveToSlotCommand
@@ -271,6 +492,14 @@ namespace Cindeck.ViewModels
                 if (SelectedUnit != null)
                 {
                     TemporalUnit.CopyFrom(SelectedUnit);
+                }
+                DeleteCommand.RaiseCanExecuteChanged();
+            }
+            else if (propertyName == nameof(SelectedOptimizeResult))
+            {
+                if (SelectedOptimizeResult != null)
+                {
+                    TemporalUnit.CopyFrom(SelectedOptimizeResult);
                 }
                 DeleteCommand.RaiseCanExecuteChanged();
             }

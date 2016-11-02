@@ -21,6 +21,11 @@
                     <ComboBox x:Name="comboBox" IsEditable="True" Text="{Binding UnitName}" ItemsSource="{Binding Units}" SelectedItem="{Binding SelectedUnit,Mode=TwoWay}" DisplayMemberPath="Name" Width="200" HorizontalAlignment="Left"/>
                     <Button Width="100" Margin="5,0,0,0" Command="{Binding SaveCommand}" Content="保存"></Button>
                     <Button Width="100" Margin="5,0,0,0" Command="{Binding DeleteCommand}" Content="削除"></Button>
+                    <ComboBox Margin="20,0,0,0" ItemsSource="{Binding SongTypes}" SelectedValue="{Binding SongType}" DisplayMemberPath="Item2" SelectedValuePath="Item1"  Grid.Row="4" Grid.Column="1" MinWidth="100" HorizontalAlignment="Left"/>
+                    <ComboBox Margin="5,0,0,0" ItemsSource="{Binding GrooveBursts}" SelectedValue="{Binding GrooveBurst}" DisplayMemberPath="Item2" SelectedValuePath="Item1"  Grid.Row="4" Grid.Column="1" MinWidth="100" HorizontalAlignment="Left"/>
+                    <CheckBox Margin="5,5,0,0" Content="回復含む" IsChecked="{Binding ContainRecovery, Mode=TwoWay}"/>
+                    <Button Width="100" Margin="5,0,0,0" Command="{Binding OptimizeCommand}" Content="最適化"></Button>
+                    <ComboBox Margin="5,0,0,0" ItemsSource="{Binding OptimizeResults}" SelectedValue="{Binding SelectedOptimizeResult}" DisplayMemberPath="Item2" SelectedValuePath="Item1"  Grid.Row="5" Grid.Column="1" MinWidth="100" HorizontalAlignment="Left"/>
                 </StackPanel>
                 <Grid Margin="0,5,0,0" DockPanel.Dock="Top">
                     <Grid.ColumnDefinitions>
