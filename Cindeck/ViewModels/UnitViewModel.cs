@@ -499,7 +499,11 @@ namespace Cindeck.ViewModels
             {
                 if (SelectedOptimizeResult != null)
                 {
-                    TemporalUnit.CopyFrom(SelectedOptimizeResult);
+                    TemporalUnit.Slot1 = SelectedOptimizeResult.Slot1;
+                    TemporalUnit.Slot2 = SelectedOptimizeResult.Slot2;
+                    TemporalUnit.Slot3 = SelectedOptimizeResult.Slot3;
+                    TemporalUnit.Slot4 = SelectedOptimizeResult.Slot4;
+                    TemporalUnit.Slot5 = SelectedOptimizeResult.Slot5;
                 }
                 DeleteCommand.RaiseCanExecuteChanged();
             }
